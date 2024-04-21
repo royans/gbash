@@ -5,6 +5,8 @@ and generate Bash scripts for execution.
 
 **Disclaimer:** This script is for educational and proof-of-concept purposes only. 
 Running generated scripts without proper safeguards can be extremely risky.
+
+https://github.com/royans/gbash/
 """
 
 import os
