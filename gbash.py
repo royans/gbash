@@ -1,4 +1,9 @@
 #!/usr/bin/python3
+################ royans ##################################################
+#### NOTE: This is just a proof of concept ###############################
+#### NOTE: Its very very VERY risky to run this without safeguards #######
+##########################################################################
+
 import os
 import sys
 import random
@@ -46,8 +51,6 @@ def create_temp_file(file_content):
   return temp_file_path
 
 def main():
-  # Get project ID and endpoint from environment variables
-
   # Get prompt from command-line argument
   if len(sys.argv) < 2:
     print("Error: Please provide a prompt as a command-line argument.")
@@ -58,12 +61,11 @@ def main():
   model = genai.GenerativeModel('gemini-pro')
   script_name=create_temp_file(getScript(model, command))
 
-  print("File name :"+script_name)
-  print("========================")
-  os.system("cat "+script_name);
-  print("\n========================")
+  # Execute the script
   os.system("bash "+script_name);
-  os.system("bash rm "+script_name);
+
+  # Cleanup
+  os.system("rm "+script_name);
 
 if __name__ == "__main__":
     main()
