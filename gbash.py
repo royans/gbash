@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import os
 import sys
 import random
@@ -62,6 +63,7 @@ def main():
   os.system("cat "+script_name);
   print("\n========================")
   os.system("bash "+script_name);
+  os.system("bash rm "+script_name);
 
 if __name__ == "__main__":
     main()
