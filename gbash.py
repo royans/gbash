@@ -42,8 +42,6 @@ def generate_script(model, command):
 
     """ + command
 
-    print(prompt)
-
     response = model.generate_content(prompt)
     script = response.text.replace("```bash", "").replace("```", "")
     return script
