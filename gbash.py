@@ -32,21 +32,17 @@ def generate_script(model, command):
 
     self_info=execute_and_capture("cat /etc/issue | grep -v ^$; uname -a;");
 
-    prompt = f"""You are a command interpreter for a system administrator who doesn't know how to use bash.
+    prompt = f"""You are a command interpreter for a system administrator who doesn't know how to use bash. 
     Your goal is to interpret the questions asked by the admin and convert the question into a working bash script which the user could run.
     Make sure that the script is executable and test it yourself before you give back the answer.
 
-    To help you understand which system you are on, I'll share the output of the following command which you can use to understand what type of linux this is
-    " cat /etc/issue | grep -v ^$; uname -a; "
-    output is betweeen the two lines containing "==="
-
-    ===
-    """ + self_info + """
-    ===
     The command from the admin will follow after two empty lines. The Script should start with "#!/bin/bash".
+    It should be possible to execute that script without any errors. Please test before you generate the script.
 
 
     """ + command
+
+    print(prompt)
 
     response = model.generate_content(prompt)
     script = response.text.replace("```bash", "").replace("```", "")
