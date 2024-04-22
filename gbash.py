@@ -30,6 +30,7 @@ def generate_script(model, command):
         The generated Bash script as a string.
     """
 
+
     self_info=execute_and_capture("cat /etc/issue | head -1");
 
     if len(self_info)>5:
@@ -47,8 +48,16 @@ def generate_script(model, command):
 
     Command:{command}"""
 
-    response = model.generate_content(prompt)
-    script = response.text.replace("```bash", "").replace("```", "")
+    response = model.generate_content(
+        [prompt]
+        )
+    script = ''
+    try:
+        script = response.text.replace("```bash", "").replace("```", "")
+    except:
+        print("Query failed - ")
+        print(response.prompt_feedback)
+        
     return script
 
 
@@ -88,6 +97,10 @@ def main():
     generates a Bash script, executes it, and cleans up.
     """
 
+    self_id=execute_and_capture("id -u");
+    if self_id == 0:
+        print("Please do not run as root")
+        exit -1
 
     debug=0
 
@@ -101,8 +114,29 @@ def main():
         debug=1
         command = sys.argv[2]
 
+
+
+    generation_config: str ={
+      'temperature': 0.9,
+      'top_p': 1,
+      'top_k': 40,
+      'max_output_tokens': 2048,
+      'stop_sequences': [],
+    }
+
+    safety_settings : list[str] = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+    ]
+
     genai.configure(api_key=os.getenv("API_KEY"))
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel(
+		model_name='models/gemini-pro',
+		generation_config=generation_config,
+        safety_settings=safety_settings
+	)
     script = generate_script(model, command)
     temp_file_path = create_temp_file(script)
 
