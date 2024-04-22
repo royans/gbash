@@ -13,6 +13,7 @@ import os
 import sys
 import random
 import subprocess
+import argparse
 
 import google.generativeai as genai
 
@@ -29,13 +30,23 @@ def generate_script(model, command):
         The generated Bash script as a string.
     """
 
+    self_info=execute_and_capture("cat /etc/issue | grep -v ^$; uname -a;");
+
     prompt = f"""You are a command interpreter for a system administrator who doesn't know how to use bash.
     Your goal is to interpret the questions asked by the admin and convert the question into a working bash script which the user could run.
     Make sure that the script is executable and test it yourself before you give back the answer.
+
+    To help you understand which system you are on, I'll share the output of the following command which you can use to understand what type of linux this is
+    " cat /etc/issue | grep -v ^$; uname -a; "
+    output is betweeen the two lines containing "==="
+
+    ===
+    """ + self_info + """
+    ===
     The command from the admin will follow after two empty lines. The Script should start with "#!/bin/bash".
 
 
-    {command}"""
+    """ + command
 
     response = model.generate_content(prompt)
     script = response.text.replace("```bash", "").replace("```", "")
@@ -59,6 +70,18 @@ def create_temp_file(file_content):
         f.write(file_content)
     return temp_file_path
 
+def execute_and_capture(command):
+    """
+	Executes a shell command and returns the output as a string.
+
+  	Args:
+      command: The shell command to execute.
+
+    Returns:
+      The output of the command as a string.
+    """
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return result.stdout
 
 def main():
     """
@@ -66,11 +89,18 @@ def main():
     generates a Bash script, executes it, and cleans up.
     """
 
+
+    debug=0
+
     if len(sys.argv) < 2:
         print("Error: Please provide a prompt as a command-line argument.")
         sys.exit(1)
 
     command = sys.argv[1]
+
+    if command == "-d":
+        debug=1
+        command = sys.argv[2]
 
     genai.configure(api_key=os.getenv("API_KEY"))
     model = genai.GenerativeModel('gemini-pro')
@@ -78,6 +108,10 @@ def main():
     temp_file_path = create_temp_file(script)
 
     try:
+        if debug==1:
+            print("================================")   
+            subprocess.run(["cat", temp_file_path], check=True)
+            print("\n================================\n")   
         subprocess.run(["bash", temp_file_path], check=True)
     finally:
         os.remove(temp_file_path)
