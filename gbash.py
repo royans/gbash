@@ -30,17 +30,22 @@ def generate_script(model, command):
         The generated Bash script as a string.
     """
 
-    self_info=execute_and_capture("cat /etc/issue | grep -v ^$; uname -a;");
+    self_info=execute_and_capture("cat /etc/issue | head -1");
+
+    if len(self_info)>5:
+        self_info = "This system is: "+self_info
 
     prompt = f"""You are a command interpreter for a system administrator who doesn't know how to use bash. 
     Your goal is to interpret the questions asked by the admin and convert the question into a working bash script which the user could run.
-    Make sure that the script is executable and test it yourself before you give back the answer.
 
-    The command from the admin will follow after two empty lines. The Script should start with "#!/bin/bash".
+    {self_info}
+
+    The command from the admin will follow after two empty lines and the string "Command:". 
+    The Script should start with "#!/bin/bash".
     It should be possible to execute that script without any errors. Please test before you generate the script.
 
 
-    """ + command
+    Command:{command}"""
 
     response = model.generate_content(prompt)
     script = response.text.replace("```bash", "").replace("```", "")
