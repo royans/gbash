@@ -114,8 +114,6 @@ def main():
         debug=1
         command = sys.argv[2]
 
-
-
     generation_config: str ={
       'temperature': 0.9,
       'top_p': 1,
@@ -130,6 +128,14 @@ def main():
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
     ]
+
+
+    if os.getenv("API_KEY") is None:
+        print("API_KEY is not set... please set it and export it in your shell");
+        print('Example: ');
+        print(' $ API_KEY="21Ab..........."');
+        print(' $ export API_KEY');
+        exit()
 
     genai.configure(api_key=os.getenv("API_KEY"))
     model = genai.GenerativeModel(
