@@ -39,6 +39,7 @@ def generate_script(model, command, stage, attachment):
     - You cannot make up answers, you have to let the system tell what the answer is
     - For example, if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back
     - You are NOT authorized to run "sudo" commands.
+    - YOUR FINAL ANSWERS MUST ALWAYS BE READABLE ENGLISH.
 
     There are three potential outcomes which are possible
     (1) Stage 1:
@@ -55,7 +56,7 @@ def generate_script(model, command, stage, attachment):
     Note 
     a) Every time there is a followup, I'll let you know what "Stage" of request it is. The first set of questioning will be called "Stage 1".
     If there is additional information from the follow ups, they will be documented as new Stages in the prompt. Please make sure you read the original request, and subsequent information to provide the most accurate answer.
-    b) Your answer MUST always start with the one of the following phrases : STAGING_SCRIPT, FINAL_SCRIPT or FINAL_ANSWER
+    b) YOUR OUTPUT MUST ALWAYS start with the one of the following phrases : STAGING_SCRIPT, FINAL_SCRIPT or FINAL_ANSWER
        - THIS IS A REQUIREMENT.
 
     Here are some requirements
