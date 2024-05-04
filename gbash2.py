@@ -14,52 +14,97 @@ import sys
 import random
 import subprocess
 import argparse
+import re
 
 import google.generativeai as genai
 
-
-def generate_script(model, command):
+def generate_script(model, command, stage, attachment):
     """
     Generates a Bash script from a natural language command using a generative AI model.
-
-    Args:
-        model: The Generative AI model instance.
-        command: The natural language command to interpret.
-
-    Returns:
-        The generated Bash script as a string.
     """
 
+    self_info = execute_and_capture("cat /etc/issue | head -1")
+    if len(self_info) > 5:
+        self_info = "This system is: " + self_info
 
-    self_info=execute_and_capture("cat /etc/issue | head -1");
+    prompt = f"""
+    ==================================
+    STAGE {stage}
+    ==================================
 
-    if len(self_info)>5:
-        self_info = "This system is: "+self_info
+    You are a command interpreter for a system administrator who doesn't know how to use bash. 
+    - Your goal is to interpret the questions asked by the admin and help answer it perfectly
+    - If you need to run shell scripts using bash, you may do so, but the answers should always be back in english.
+    - Your goal is to probe the operating system the user is on and query it to get the right answer
+    - You cannot make up answers, you have to let the system tell what the answer is
+    - For example, if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back
+    - You are NOT authorized to run "sudo" commands.
 
-    prompt = f"""You are a command interpreter for a system administrator who doesn't know how to use bash. 
-    Your goal is to interpret the questions asked by the admin and convert the question into a working bash script which the user could run.
+    There are three potential outcomes which are possible
+    (1) Stage 1:
+        - If you understand the question, but need to run a script to get more information, please respond back with “FINAL_SCRIPT” and the script starting at the next line.
+        - If you understand the question, but need to run a script just to figure out how to write the “FINAL_SCRIPT” respond back with “STAGING_SCRIPT” and the actual script starting in the next line.
+        - If the answer is super clear and you don’t need any script output, you can respond with “FINAL_ANSWER” and write the answer on the next line.
 
+
+    (2) Stage 2: In stage you, you would be given the original problem statement, the staging script and the output of the staging output
+        - Your goal is to create the “FINAL_SCRIPT” or generate the “FINAL_ANSWER”
+
+    (3) Stage 3: In this stage, your goal is to generate “FINAL_ANSWER” based on the best information you have so far.
+
+    Note 
+    a) Every time there is a followup, I'll let you know what "Stage" of request it is. The first set of questioning will be called "Stage 1".
+    If there is additional information from the follow ups, they will be documented as new Stages in the prompt. Please make sure you read the original request, and subsequent information to provide the most accurate answer.
+    b) Your answer MUST always start with the one of the following phrases : STAGING_SCRIPT, FINAL_SCRIPT or FINAL_ANSWER
+       - THIS IS A REQUIREMENT.
+
+    Here are some requirements
+        - You cannot run any sudo commands
+        - The final answer SHOULD NOT CONTAIN any bash commands... it should actually be the final answer which doesn't need any code execution. 
+        - You cannot make any modifications in file system outside of /tmp/ directory
+        - When sharing STAGING_SCRIPT or FINAL_SCRIPT ALWAYS start the script with “#!/bin/bash”
+        - Once you generate a STAGING_SCRIPT or FINAL_SCRIPT, you MUST REVIEW IT and MAKE SURE that it will do what its expected to do... do not guess.
+
+    To begin with, here is some basic system info for you to use to provide the answer for Stage 1
     {self_info}
 
-    The command from the admin will follow after two empty lines and the string "Command:". 
-    The Script should start with "#!/bin/bash".
-    It should be possible to execute that script without any errors. Please test before you generate the script.
+    {"Attachment:" + attachment if attachment else ""}
 
-
-    Command:{command}"""
+    Command: {command}
+    """  
 
     response = model.generate_content(
         [prompt]
-        )
+    )
     script = ''
     try:
         script = response.text.replace("```bash", "").replace("```", "")
     except:
         print("Query failed - ")
         print(response.prompt_feedback)
-        
+
     return script
 
+def parse_response(response_text):
+    """Parses the response from Gemini and identifies the type and content."""
+
+    print("========")
+    print(response_text)
+    print("========")
+    if "FINAL_SCRIPT" in response_text:
+        script = re.search(r"FINAL_SCRIPT\n(.*)", response_text, re.DOTALL).group(1)
+        return "script", script
+    elif "STAGING_SCRIPT" in response_text:
+        script = re.search(r"STAGING_SCRIPT\n(.*)", response_text, re.DOTALL).group(1)
+        return "staging_script", script
+    elif "REQUEST_UNCLEAR" in response_text:
+        question = re.search(r"REQUEST_UNCLEAR\n(.*)", response_text, re.DOTALL).group(1)
+        return "question", question
+    elif "FINAL_ANSWER" in response_text:
+        answer = re.search(r"FINAL_ANSWER\n(.*)", response_text, re.DOTALL).group(1)
+        return "answer", answer
+    else:
+        return "unknown", response_text
 
 def create_temp_file(file_content):
     """
@@ -92,10 +137,7 @@ def execute_and_capture(command):
     return result.stdout
 
 def main():
-    """
-    Interprets a command-line argument as a natural language command,
-    generates a Bash script, executes it, and cleans up.
-    """
+    """Interacts with Gemini to process the command and get the final answer."""
 
     self_id=execute_and_capture("id -u");
     if self_id == 0:
@@ -129,7 +171,6 @@ def main():
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
     ]
 
-
     if os.getenv("API_KEY") is None:
         print("API_KEY is not set... please set it and export it in your shell");
         print('Example: ');
@@ -143,18 +184,33 @@ def main():
 		generation_config=generation_config,
         safety_settings=safety_settings
 	)
-    script = generate_script(model, command)
-    temp_file_path = create_temp_file(script)
-
-    try:
-        if debug==1:
-            print("================================")   
-            subprocess.run(["cat", temp_file_path], check=True)
-            print("\n================================\n")   
-        subprocess.run(["bash", temp_file_path], check=True)
-    finally:
-        os.remove(temp_file_path)
-
+    stage = 1
+    attachment = "" 
+    while True:
+        script = generate_script(model, command, stage, attachment)
+        response_type, content = parse_response(script) 
+        if response_type == "script":
+            # Execute the final script and print the output 
+            output = execute_and_capture(content) 
+            print(output) 
+            break  # We have the final answer 
+        elif response_type == "staging_script": 
+            # Execute the staging script, capture output, and prepare for next stage
+            output = execute_and_capture(content) 
+            attachment += f"\n\n== STAGING SCRIPT OUTPUT ==\n{output}"
+            stage = 2 
+        elif response_type == "question": 
+            # Ask the user for clarification and prepare for next stage 
+            clarification = input(f"Clarification needed: {content}\nYour answer: ") 
+            attachment += f"\n\n== CLARIFICATION ==\n{clarification}"
+            stage = 1  # We're still in the initial question stage 
+        elif response_type == "answer": 
+            # We have the final answer directly 
+            print(content) 
+            break 
+        else:
+            print("Error: Unknown response from Gemini.")
+            break
 
 if __name__ == "__main__":
     main()
