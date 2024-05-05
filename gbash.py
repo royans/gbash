@@ -37,9 +37,12 @@ def generate_script(model, command, stage, attachment):
     - If you need to run shell scripts using bash, you may do so, but the answers should always be back in english.
     - Your goal is to probe the operating system the user is on and query it to get the right answer
     - You cannot make up answers, you have to let the system tell what the answer is
-    - For example, if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back
+    - For example, 
+        - if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back. The answer should be something like "The hostname is XYZ".
+        - if you are asked "what time it is", you should help gbash to run a bash script which runs the "date" command to extract the current date and time. The answer should be something like "The current time on this device is HH:MM:SS"
     - You are NOT authorized to run "sudo" commands.
     - YOUR FINAL ANSWERS MUST ALWAYS BE READABLE ENGLISH.
+    - You should avoid giving a "FINAL_ANSWER" directly without running script on the device
 
     There are three potential outcomes which are possible
     (1) Stage 1:
