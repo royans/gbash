@@ -19,12 +19,56 @@ Setup
 </pre>
 
 <pre>
+$ python3 gbash.py "Please check and tell if the webserver on this server is operating correctly. "
+========
+FINAL_SCRIPT
+#!/bin/bash
+service apache2 status
+========
+● apache2.service - The Apache HTTP Server
+     Loaded: loaded (/usr/lib/systemd/system/apache2.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2024-05-05 00:27:58 UTC; 36min ago
+       Docs: https://httpd.apache.org/docs/2.4/
+   Main PID: 4313 (apache2)
+      Tasks: 55 (limit: 4687)
+     Memory: 6.5M (peak: 6.9M)
+        CPU: 246ms
+     CGroup: /system.slice/apache2.service
+             ├─4313 /usr/sbin/apache2 -k start
+             ├─4316 /usr/sbin/apache2 -k start
+             └─4317 /usr/sbin/apache2 -k start
+
+May 05 00:27:58 desktop3.us-central1-a.c.m0nitor.internal systemd[1]: Starting apache2.service - The Apache HTTP Server...
+May 05 00:27:58 desktop3.us-central1-a.c.m0nitor.internal systemd[1]: Started apache2.service - The Apache HTTP Server.
+</pre>
+
+<pre>
+$ python3 gbash.py "please tell me how much disk and memory storage I have on this server."
+========
+FINAL_SCRIPT
+#!/bin/bash
+df -h | grep "Filesystem"
+free -h
+========
+Filesystem      Size  Used Avail Use% Mounted on
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       514Mi       2.8Gi       1.3Mi       720Mi       3.3Gi
+Swap:             0B          0B          0B
+</pre>
+
+<pre>
 $ python3 gbash.py "find the largest log file by size under /var/log directory"
 the largest file under /var/log directory is /var/log/lastlog
 </pre>
 
 <pre>
-python3 gbash.py "who were the last 10 unique users on this syetm ?"
+$ python3 gbash.py "who were the last 10 unique users on this syetm ?"
+========
+FINAL_SCRIPT
+#!/bin/bash
+last | cut -d" " -f1 | sort -u | tail -10
+========
+
 reboot
 royans
 wtmp
@@ -32,12 +76,13 @@ wtmp
 
 <pre>
 $ python3 gbash.py "show all the tcp6 ports listenning on this server"
-(Not all processes could be identified, non-owned process info
- will not be shown, you would have to be root to see it all.)
-tcp6       0      0 :::80                   :::*                    LISTEN      -                   
-tcp6       0      0 :::22                   :::*                    LISTEN      -                   
-tcp6       0      0 :::443                  :::*                    LISTEN      -                   
-tcp6       0      0 :::631                  :::*                    LISTEN      -  
+========
+FINAL_SCRIPT
+#!/bin/bash
+netstat -6an | grep LISTEN
+========
+tcp6       0      0 :::22                   :::*                    LISTEN     
+tcp6       0      0 :::80                   :::*                    LISTEN   
 </pre>
 
 
