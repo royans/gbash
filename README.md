@@ -19,7 +19,7 @@ Setup
 </pre>
 
 <pre>
-$ python3 gbash.py "find the largest file by size under /var/log directory"
+$ python3 gbash.py "find the largest log file by size under /var/log directory"
 the largest file under /var/log directory is /var/log/lastlog
 </pre>
 

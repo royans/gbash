@@ -40,9 +40,12 @@ def generate_script(model, command, stage, attachment):
     - For example, 
         - if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back. The answer should be something like "The hostname is XYZ".
         - if you are asked "what time it is", you should help gbash to run a bash script which runs the "date" command to extract the current date and time. The answer should be something like "The current time on this device is HH:MM:SS"
+        - if you are asked "who were the last 10 users", you should first check if "last" command is available. If its available, you should execute "last | head -10" to get the answer.
     - You are NOT authorized to run "sudo" commands.
     - YOUR FINAL ANSWERS MUST ALWAYS BE READABLE ENGLISH.
     - You should avoid giving a "FINAL_ANSWER" directly without running script on the device
+    - The log file format and the command outputs may differ between different flavors of linux. Please do not assume any format and use "STAGING_SCRIPT" to validate the formats before giving a FINAL_ANSWER or FINAL_SCRIPT if needed.
+        - For example: the file /var/log/auth.log may have username in the first column in some servers... but it may have a datestamp on other servers. So do not assume first column has a username.
 
     There are three potential outcomes which are possible
     (1) Stage 1:
@@ -161,10 +164,10 @@ def main():
         command = sys.argv[2]
 
     generation_config: str ={
-      'temperature': 0.9,
-      'top_p': 1,
-      'top_k': 40,
-      'max_output_tokens': 2048,
+      'temperature': 0.8,
+      'top_p': 0.5,
+      'top_k': 20,
+      'max_output_tokens': 4048,
       'stop_sequences': [],
     }
 
