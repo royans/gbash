@@ -49,7 +49,7 @@ FINAL_SCRIPT
 #!/bin/bash
 sudo lshw -class disk
 ========
-  -disk
+  *-disk
        description: SCSI Disk
        product: PersistentDisk
        vendor: Google
@@ -60,6 +60,12 @@ sudo lshw -class disk
        size: 20GiB (21GB)
        capabilities: gpt-1.00 partitioned partitioned:gpt
        configuration: ansiversion=6 guid=6ae7b212-f7ff-475e-8a03-7ba7b71ed3b3 logicalsectorsize=512 sectorsize=4096
+
+========
+FINAL_ANSWER
+This server has SCSI Disk type of physical storage.
+========
+This server has SCSI Disk type of physical storage.
 </pre>
 
 <pre>
