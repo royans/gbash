@@ -47,12 +47,20 @@ $ python3 gbash.py "please tell me how much disk and memory storage I have on th
 ========
 FINAL_SCRIPT
 #!/bin/bash
-df -h | grep "Filesystem"
+df -h
 free -h
 ========
 Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        19G  3.1G   16G  17% /
+tmpfs           2.0G     0  2.0G   0% /dev/shm
+tmpfs           783M  964K  782M   1% /run
+tmpfs           5.0M     0  5.0M   0% /run/lock
+efivarfs         56K   24K   27K  48% /sys/firmware/efi/efivars
+/dev/sda16      881M   61M  759M   8% /boot
+/dev/sda15      105M  6.1M   99M   6% /boot/efi
+tmpfs           392M   12K  392M   1% /run/user/1001
                total        used        free      shared  buff/cache   available
-Mem:           3.8Gi       514Mi       2.8Gi       1.3Mi       720Mi       3.3Gi
+Mem:           3.8Gi       453Mi       3.3Gi       1.3Mi       303Mi       3.4Gi
 Swap:             0B          0B          0B
 </pre>
 
