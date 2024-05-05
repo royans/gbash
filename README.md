@@ -43,6 +43,26 @@ May 05 00:27:58 desktop3.us-central1-a.c.m0nitor.internal systemd[1]: Started ap
 </pre>
 
 <pre>
+$ python3 gbash.py "What type of physical storage does this server have ?"
+========
+FINAL_SCRIPT
+#!/bin/bash
+sudo lshw -class disk
+========
+  -disk
+       description: SCSI Disk
+       product: PersistentDisk
+       vendor: Google
+       physical id: 0.1.0
+       bus info: scsi@0:0.1.0
+       logical name: /dev/sda
+       version: 1
+       size: 20GiB (21GB)
+       capabilities: gpt-1.00 partitioned partitioned:gpt
+       configuration: ansiversion=6 guid=6ae7b212-f7ff-475e-8a03-7ba7b71ed3b3 logicalsectorsize=512 sectorsize=4096
+</pre>
+
+<pre>
 $ python3 gbash.py "please tell me how much disk and memory storage I have on this server."
 ========
 FINAL_SCRIPT
