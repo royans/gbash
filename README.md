@@ -113,6 +113,28 @@ tcp6       0      0 :::22                   :::*                    LISTEN
 tcp6       0      0 :::80                   :::*                    LISTEN   
 </pre>
 
+<pre>
+$ python3 gbash.py "does this server have any webserver running ?"
+========
+FINAL_SCRIPT
+#!/bin/bash
+if pgrep -x "apache2" > /dev/null
+then
+    echo "Yes, Apache2 is running"
+elif pgrep -x "nginx" > /dev/null
+then
+    echo "Yes, Nginx is running"
+else
+    echo "No webserver is running"
+fi
+========
+Yes, Apache2 is running
 
+========
+FINAL_ANSWER
+Yes, this server has Apache2 running
+========
+Yes, this server has Apache2 running
+</pre>
 
 
