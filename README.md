@@ -10,7 +10,10 @@ Learning all the bash commands can sometimes be a pain for someone new.
 To use this please set the environment variable API_KEY to your Gemini API key.
 You can find your Gemini key at https://aistudio.google.com/app/apikey
 
-Setup
+Setup Step 1 - install "google.generativeai" (one time only)
+   pip3 install google.generativeai
+
+Setup Step 2 -  setup your key in your environment variable (every time u use shell, or put it in your .bashrc script)
    API_KEY='API KEY HERE'
    export API_KEY
 
