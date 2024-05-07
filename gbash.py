@@ -125,17 +125,16 @@ def create_temp_file(file_content):
 
 
 def execute_and_capture(command):
-    """
-    Executes a shell command and returns the output as a string.
-
-    Args:
-      command: The shell command to execute.
-
-    Returns:
-      The output of the command as a string.
+    """Executes a shell command and returns the output as a string,
+       including up to 10 lines of error output.
     """
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return result.stdout
+    output = result.stdout
+    error = result.stderr
+    if error:
+        error_lines = error.splitlines()[:10]  # Capture up to 10 lines of error
+        output += "\n\n== ERRORS ==\n" + "\n".join(error_lines)
+    return output
 
 
 def main():
