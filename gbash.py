@@ -25,12 +25,17 @@ def generate_script(model, command, stage, attachment):
     ==================================
     STAGE {stage}
     ==================================
-    You are a command interpreter for a system administrator who doesn't know how to use bash. 
+    You are a command interpreter for a system administrator who doesn't know how to use bash. You also have the ability to help the admin to manage the Google Cloud infrastructure using the "gcloud" CLI which is available on the system.
 
     - Your primary goal is to understand the user's ultimate objective and provide a clear and concise answer in plain English (FINAL_ANSWER).
     - If executing a bash script is absolutely necessary to achieve the user's goal, generate a safe and efficient FINAL_SCRIPT.
     - When generating scripts, prioritize gathering information dynamically using relevant commands, considering potential variations across Linux distributions.
     - Before presenting any script, thoroughly validate its actions to guarantee safety and alignment with the user's intent.
+
+    - Here are some references on how to use gcloud
+        - https://cloud.google.com/sdk/docs/cheatsheet
+        - https://cloud.google.com/logging/docs/reference/tools/gcloud-logging
+
 
     - Remember, your responses should be informative, helpful, and free from any bash commands, focusing on delivering the final answer in a human-readable format.
 
@@ -38,6 +43,18 @@ def generate_script(model, command, stage, attachment):
         - if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back. The answer should be something like "The hostname is XYZ".
         - if you are asked "what time it is", you should help gbash to run a bash script which runs the "date" command to extract the current date and time. The answer should be something like "The current time on this device is HH:MM:SS"
         - if you are asked "who were the last 10 users", you should first check if "last" command is available. If its available, you should execute "last | head -10" to get the answer.
+        - if the request starts with "gcloud:", consider using the gcloud command inside the shell to probe the Google Cloud infrastructure to get the answers.
+            - Please read the manual pages carefully before using a gcloud request.
+            - Please add the following line to the bash script if gcloud is being used. This will set the default value for $PROJECT_ID. 
+                PROJECT_ID=`gcloud config get-value project`; export PROJECT_ID
+            - Please do not add date filters in the scripts without getting current date using the date command
+            - Do not assume any filters, services, dates, or resource addresses.
+            - Some examples of gcloud commands
+                - Read recent logs
+                    gcloud logging read "severity:ERROR" --order desc --format json | jq '.[].textPayload'
+                - list allocated IP addresses
+                    gcloud compute addresses list
+                - 
 
     There are three potential outcomes which are possible
         (1) Stage 1:
@@ -49,6 +66,7 @@ def generate_script(model, command, stage, attachment):
         (3) Stage 3: In this stage, your goal is to generate “FINAL_ANSWER” based on the best information you have so far.
 
     Note 
+        - WHEN YOU GET ERRORS in the output/resiults, YOU MUST CHANGE the STAGING_SCRIPT and re-run it IMMEDIATELY.
         - Every time there is a followup, I'll let you know what "Stage" of request it is. The first set of questioning will be called "Stage 1". 
         - If there is additional information from the follow ups, they will be documented as new Stages in the prompt. Please make sure you read the original request, and subsequent information to provide the most accurate answer.
 
@@ -60,6 +78,7 @@ def generate_script(model, command, stage, attachment):
         - When sharing STAGING_SCRIPT or FINAL_SCRIPT ALWAYS start the script with “#!/bin/bash” 
         - You cannot make any modifications in file system outside of /tmp/ directory
         - You are NOT authorized to run "sudo" commands.
+        - IF YOU HAVE ERRORS IN THE OUTPUT, YOU MUST RETRY THE REQUEST IN A DIFFERENT WAY.
         - The final answer SHOULD NOT CONTAIN any bash commands... it should actually be the final answer which doesn't need any code execution. 
         - YOUR FINAL ANSWERS MUST ALWAYS BE READABLE ENGLISH.
         - The log file format and the command outputs may differ between different flavors of linux. 
@@ -134,6 +153,8 @@ def execute_and_capture(command):
     if error:
         error_lines = error.splitlines()[:10]  # Capture up to 10 lines of error
         output += "\n\n== ERRORS ==\n" + "\n".join(error_lines)
+    #print ("=============="+output+"==============")
+    
     return output
 
 
