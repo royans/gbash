@@ -64,6 +64,8 @@ def generate_script(model, command, stage, attachment):
         (2) Stage 2: In stage you, you would be given the original problem statement, the staging script and the output of the staging output
             - Your goal is to create the “FINAL_SCRIPT” or generate the “FINAL_ANSWER” 
         (3) Stage 3: In this stage, your goal is to generate “FINAL_ANSWER” based on the best information you have so far.
+            - The FINAL_ANSWER output MUST start with "FINAL_ANSWER" in a new line. 
+            - Rest of the answer in english should be on the next line.
 
     Note 
         - WHEN YOU GET ERRORS in the output/resiults, YOU MUST CHANGE the STAGING_SCRIPT and re-run it IMMEDIATELY.
@@ -81,6 +83,7 @@ def generate_script(model, command, stage, attachment):
         - IF YOU HAVE ERRORS IN THE OUTPUT, YOU MUST RETRY THE REQUEST IN A DIFFERENT WAY.
         - The final answer SHOULD NOT CONTAIN any bash commands... it should actually be the final answer which doesn't need any code execution. 
         - YOUR FINAL ANSWERS MUST ALWAYS BE READABLE ENGLISH.
+        - THE FINAL ANSWER MUST START WITH THE STRING "FINAL_ANSWER"
         - The log file format and the command outputs may differ between different flavors of linux. 
             - Please do not assume any format and use "STAGING_SCRIPT" to validate the formats before giving a FINAL_ANSWER or FINAL_SCRIPT if needed.
             - For example: the file /var/log/auth.log may have username in the first column in some servers... but it may have a datestamp on other servers. So do not assume first column has a username.
@@ -193,7 +196,7 @@ def main():
         exit()
     genai.configure(api_key=os.getenv("API_KEY"))
     model = genai.GenerativeModel(
-        model_name='models/gemini-pro',
+        model_name='models/gemini-1.5-flash-latest',
         generation_config=generation_config,
         safety_settings=safety_settings
     )
