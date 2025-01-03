@@ -1,10 +1,15 @@
-#!/usr/bin/python3
-"""This script uses Google's Generative AI API to interpret natural language commands
-and generate Bash scripts for execution.
+"""
+GBash: Natural Language to Bash Command Translator
 
-**Disclaimer:** This script is for educational and proof-of-concept purposes only. Running generated scripts without proper safeguards can be extremely risky.
+This script uses Google's Generative AI API (Gemini) to translate natural language 
+commands into Bash scripts for execution.
+
+**Disclaimer:** This script is for educational and proof-of-concept purposes only. 
+Running generated scripts without proper safeguards can be extremely risky.
+
 https://github.com/royans/gbash/
 """
+
 import os
 import sys
 import random
@@ -14,63 +19,86 @@ import re
 import google.generativeai as genai
 
 
-def generate_script(model, command, stage, attachment):
+def generate_bash_script(gemini_model, user_command, current_stage, previous_script_output):
     """
     Generates a Bash script from a natural language command using a generative AI model.
+
+    Args:
+        gemini_model: The initialized Google Generative AI model.
+        user_command: The natural language command from the user.
+        current_stage: An integer representing the current stage of the interaction (1, 2, or 3).
+        previous_script_output: The output from a previously executed script (if any).
+
+    Returns:
+        A string containing the generated script or an empty string if no script is generated.
     """
-    self_info = execute_and_capture("cat /etc/issue | head -1")
-    if len(self_info) > 5:
-        self_info = "This system is: " + self_info
-    prompt = f"""
-    ==================================
-    STAGE {stage}
-    ==================================
-    You are a command interpreter for a system administrator who doesn't know how to use bash. You also have the ability to help the admin to manage the Google Cloud infrastructure using the "gcloud" CLI which is available on the system.
 
-    - Your primary goal is to understand the user's ultimate objective and provide a clear and concise answer in plain English (FINAL_ANSWER).
-    - If executing a bash script is absolutely necessary to achieve the user's goal, generate a safe and efficient FINAL_SCRIPT.
-    - When generating scripts, prioritize gathering information dynamically using relevant commands, considering potential variations across Linux distributions.
-    - Before presenting any script, thoroughly validate its actions to guarantee safety and alignment with the user's intent.
+    system_info = execute_command_capture_output("cat /etc/issue | head -1")
+    if len(system_info) > 5:
+        system_info = "This system is: " + system_info
+    else:
+        system_info = ""
 
-    - Here are some references on how to use gcloud
-        - https://cloud.google.com/sdk/docs/cheatsheet
-        - https://cloud.google.com/logging/docs/reference/tools/gcloud-logging
+    prompt_template = """
+    ## System Administrator's Command Interpreter - Stage {current_stage}
 
+    You are a command interpreter designed to assist a system administrator who is not familiar with Bash scripting or the `gcloud` CLI for managing Google Cloud infrastructure.
 
-    - Remember, your responses should be informative, helpful, and free from any bash commands, focusing on delivering the final answer in a human-readable format.
+    **Your Responsibilities:**
 
-    - For example,
-        - if you are asked "Whats the hostname", you should help gbash to run a bash script which runs the "hostname" command to get the answer back. The answer should be something like "The hostname is XYZ".
-        - if you are asked "what time it is", you should help gbash to run a bash script which runs the "date" command to extract the current date and time. The answer should be something like "The current time on this device is HH:MM:SS"
-        - if you are asked "who were the last 10 users", you should first check if "last" command is available. If its available, you should execute "last | head -10" to get the answer.
-        - if the request starts with "gcloud:", consider using the gcloud command inside the shell to probe the Google Cloud infrastructure to get the answers.
-            - Please read the manual pages carefully before using a gcloud request.
-            - Please add the following line to the bash script if gcloud is being used. This will set the default value for $PROJECT_ID. 
-                PROJECT_ID=`gcloud config get-value project`; export PROJECT_ID
-            - Please do not add date filters in the scripts without getting current date using the date command
-            - Do not assume any filters, services, dates, or resource addresses.
-            - Some examples of gcloud commands
-                - Read recent logs
-                    gcloud logging read "severity:ERROR" --order desc --format json | jq '.[].textPayload'
-                - list allocated IP addresses
-                    gcloud compute addresses list
-                - 
+    1. **Understand the User's Goal:** Determine the user's ultimate objective from their natural language input.
+    2. **Generate Safe and Efficient Bash Scripts (If Necessary):** If a Bash script is absolutely required to fulfill the user's request, create a `FINAL_SCRIPT` that is both safe and efficient.
+    3. **Prioritize Dynamic Information Gathering:** When generating scripts, prioritize commands that gather information dynamically to account for variations across Linux distributions.
+    4. **Validate Script Actions:** Before presenting any script, thoroughly validate its intended actions to ensure safety and alignment with the user's goal.
+    5. **Provide Clear Explanations (FINAL_ANSWER):** Deliver a clear and concise explanation of the solution in plain English, even if a script was necessary. This explanation should be formatted as `FINAL_ANSWER`. If you know what the answer is, do not ask it to run another script. Just say the answer in english.
+    6. **Document the state:** Every response MUST start with what STAGE its about. Without that the answer is incorrect and incomplete.
 
-    There are three potential outcomes which are possible
-        (1) Stage 1:
-            - If you understand the question, but need to run a script to get more information, please respond back with “FINAL_SCRIPT”  and the script starting at the next line.
-            - If you understand the question, but need to run a script just to figure out how to write the “FINAL_SCRIPT” respond back with “STAGING_SCRIPT”  and the actual script starting in the next line.
-            - If the answer is super clear and you don’t need any script output, you can respond with “FINAL_ANSWER”  and write the answer on the next line.
-        (2) Stage 2: In stage you, you would be given the original problem statement, the staging script and the output of the staging output
-            - Your goal is to create the “FINAL_SCRIPT” or generate the “FINAL_ANSWER” 
-        (3) Stage 3: In this stage, your goal is to generate “FINAL_ANSWER” based on the best information you have so far.
-            - The FINAL_ANSWER output MUST start with "FINAL_ANSWER" in a new line. 
-            - Rest of the answer in english should be on the next line.
+    **References:**
 
-    Note 
-        - WHEN YOU GET ERRORS in the output/resiults, YOU MUST CHANGE the STAGING_SCRIPT and re-run it IMMEDIATELY.
-        - Every time there is a followup, I'll let you know what "Stage" of request it is. The first set of questioning will be called "Stage 1". 
-        - If there is additional information from the follow ups, they will be documented as new Stages in the prompt. Please make sure you read the original request, and subsequent information to provide the most accurate answer.
+    - `gcloud` Cheatsheet: [https://cloud.google.com/sdk/docs/cheatsheet](https://cloud.google.com/sdk/docs/cheatsheet)
+    - `gcloud logging` Reference: [https://cloud.google.com/logging/docs/reference/tools/gcloud-logging](https://cloud.google.com/logging/docs/reference/tools/gcloud-logging)
+
+    **Interaction Stages:**
+
+    - **Stage 1:**
+        - Understand the question and determine the best course of action.
+        - If a script is needed to gather information for the final answer, respond with `FINAL_SCRIPT`.
+        - If a script is needed to learn how to write the `FINAL_SCRIPT`, respond with `STAGING_SCRIPT`.
+        - If the answer is clear and no script is needed, respond with `FINAL_ANSWER`.
+    - **Stage 2:**
+        - You will receive the original problem statement, the `STAGING_SCRIPT`, and its output.
+        - Create the `FINAL_SCRIPT` or generate the `FINAL_ANSWER`.
+    - **Stage 3:**
+        - Generate the `FINAL_ANSWER` based on all available information.
+        - The `FINAL_ANSWER` must start with "FINAL_ANSWER" on a new line, followed by the answer in plain English on the next line.
+
+    **Important Notes:**
+
+    - **Error Handling:** If errors occur during script execution, immediately revise the `STAGING_SCRIPT` and re-run it.
+    - **Stage Awareness:** The prompt will indicate the current "Stage" of the interaction. Use this information along with the original request and subsequent outputs to provide the most accurate response.
+    - **Response Format:** Your response **MUST** always begin with one of the following phrases: `STAGING_SCRIPT`, `FINAL_SCRIPT`, or `FINAL_ANSWER`.
+    - **Test Before Answering:** Always test your generated scripts before providing them as a solution.
+    - **Script Header:**  `STAGING_SCRIPT` and `FINAL_SCRIPT` must always begin with `#!/bin/bash`.
+    - **File System Access:** You are restricted to making modifications only within the `/tmp/` directory.
+    - **`sudo` Restriction:** You are **NOT** authorized to execute `sudo` commands.
+    - **Readable Final Answers:** Final answers must always be in clear, understandable English and should not contain any Bash commands.
+    - **`gcloud` Usage:**
+        -  If a request starts with "gcloud:", use the `gcloud` command inside the shell to probe the Google Cloud infrastructure.
+        - Add the following line to the bash script if gcloud is being used. This will set the default value for $PROJECT_ID.
+            `PROJECT_ID=\`gcloud config get-value project\`; export PROJECT_ID`
+        - Do not assume any filters, services, dates, or resource addresses.
+
+    **Examples:**
+
+    - **"What's the hostname?"** -> Generate a script that runs `hostname` and provide an answer like "The hostname is XYZ."
+    - **"What time is it?"** -> Generate a script that runs `date` and provide an answer like "The current time on this device is HH:MM:SS."
+    - **"Who were the last 10 users?"** -> Check if the `last` command is available. If it is, execute `last | head -10` to get the answer.
+    - **"gcloud: Read recent ERROR logs"** -> 
+        ```bash
+        #!/bin/bash
+        PROJECT_ID=`gcloud config get-value project`; export PROJECT_ID
+        gcloud logging read "severity:ERROR" --order desc --format json | jq '.[].textPayload'
+        ```
 
     WARNING !!! IMPORTANT REQUIREMENTS !
         - MUST HAVE REQUIREMENT: YOUR OUTPUT MUST ALWAYS start with the one of the following phrases : STAGING_SCRIPT, FINAL_SCRIPT or FINAL_ANSWER 
@@ -88,50 +116,76 @@ def generate_script(model, command, stage, attachment):
             - Please do not assume any format and use "STAGING_SCRIPT" to validate the formats before giving a FINAL_ANSWER or FINAL_SCRIPT if needed.
             - For example: the file /var/log/auth.log may have username in the first column in some servers... but it may have a datestamp on other servers. So do not assume first column has a username.
 
-    Please test before you give your answer.
-    
-    To begin with, here is some basic system info for you to use to provide the answer for Stage 1
-    {self_info}
-    {"Attachment:" + attachment if attachment else ""}
-    Command: {command}. Please test and confirm the answers.
+
+    **Initial System Information:**
+    {system_info}
+
+    **Previous Script Output (if any):**
+    {previous_script_output}
+
+    **User Command:** {user_command}
+
+    **Please test and confirm your answers before responding.**
     """
 
-    response = model.generate_content(
-        [prompt]
+    formatted_prompt = prompt_template.format(
+        current_stage=current_stage,
+        system_info=system_info,
+        previous_script_output=previous_script_output if previous_script_output else "No previous script output.",
+        user_command=user_command
     )
-    script = ''
+
+    print("-----------------------------------------------------------------------")
+    print(formatted_prompt)
+    response = gemini_model.generate_content([formatted_prompt])
+    generated_script = ""
+
     try:
-        script = response.text.replace("```bash", "").replace("```", "")
-    except:
-        print("Query failed - ")
+        generated_script = response.text.replace("`bash", "").replace("`", "")
+    except Exception:
+        print("Query failed -")
         print(response.prompt_feedback)
-    return script
+
+    return generated_script
 
 
-def parse_response(response_text):
-    """Parses the response from Gemini and identifies the type and content."""
+def parse_gemini_response(response_text):
+    """
+    Parses the response from Gemini and identifies the type and content.
+
+    Args:
+        response_text: The raw text response from Gemini.
+
+    Returns:
+        A tuple containing the response type (string) and the corresponding content (string).
+    """
     print("========")
     print(response_text)
     print("========")
+
     if "FINAL_SCRIPT" in response_text:
-        script = re.search(r"FINAL_SCRIPT\n(.*)", response_text, re.DOTALL).group(1)
-        return "script", script
+        script_match = re.search(r"FINAL_SCRIPT\n(.*)", response_text, re.DOTALL)
+        if script_match:
+            return "script", script_match.group(1)
     elif "STAGING_SCRIPT" in response_text:
-        script = re.search(r"STAGING_SCRIPT\n(.*)", response_text, re.DOTALL).group(1)
-        return "staging_script", script
+        script_match = re.search(r"STAGING_SCRIPT\n(.*)", response_text, re.DOTALL)
+        if script_match:
+            return "staging_script", script_match.group(1)
     elif "REQUEST_UNCLEAR" in response_text:
-        question = re.search(r"REQUEST_UNCLEAR\n(.*)", response_text, re.DOTALL).group(1)
-        return "question", question
+        question_match = re.search(r"REQUEST_UNCLEAR\n(.*)", response_text, re.DOTALL)
+        if question_match:
+            return "question", question_match.group(1)
     elif "FINAL_ANSWER" in response_text:
-        answer = re.search(r"FINAL_ANSWER\n(.*)", response_text, re.DOTALL).group(1)
-        return "answer", answer
-    else:
-        return "unknown", response_text
+        answer_match = re.search(r"FINAL_ANSWER\n(.*)", response_text, re.DOTALL)
+        if answer_match:
+            return "answer", answer_match.group(1)
+
+    return "unknown", response_text
 
 
-def create_temp_file(file_content):
+def create_temp_bash_file(file_content):
     """
-    Creates a temporary file with the given content.
+    Creates a temporary file with the given content, specifically for bash scripts.
 
     Args:
         file_content: The content to write to the temporary file.
@@ -139,109 +193,131 @@ def create_temp_file(file_content):
     Returns:
         The path to the created temporary file.
     """
-    random_number = random.randint(0, 32766)
-    temp_file_path = f"/tmp/gbash.{random_number}"
-    with open(temp_file_path, "w") as f:
-        f.write(file_content)
+    temp_file_path = f"/tmp/gbash.{random.randint(0, 32766)}"
+    with open(temp_file_path, "w") as temp_file:
+        temp_file.write(file_content)
     return temp_file_path
 
 
-def execute_and_capture(command):
-    """Executes a shell command and returns the output as a string,
-       including up to 10 lines of error output.
+def execute_command_capture_output(command):
     """
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    output = result.stdout
-    error = result.stderr
-    if error:
-        error_lines = error.splitlines()[:10]  # Capture up to 10 lines of error
-        output += "\n\n== ERRORS ==\n" + "\n".join(error_lines)
-    #print ("=============="+output+"==============")
-    
-    return output
+    Executes a shell command and returns the output as a string, including up to 10 lines of error output.
+
+    Args:
+        command: The shell command to execute.
+
+    Returns:
+        A string containing the combined standard output and up to 10 lines of standard error.
+    """
+    process_result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    standard_output = process_result.stdout
+    standard_error = process_result.stderr
+
+    if standard_error:
+        error_lines = standard_error.splitlines()[:10]  # Capture up to 10 lines of error
+        standard_output += "\n\n== ERRORS ==\n" + "\n".join(error_lines)
+
+    return standard_output
 
 
 def main():
-    """Interacts with Gemini to process the command and get the final answer."""
-    self_id = execute_and_capture("id -u")
-    if self_id == 0:
+    """
+    Main function to interact with Gemini, process commands, and manage the conversation flow.
+    """
+
+    user_id = execute_command_capture_output("id -u")
+    if user_id.strip() == "0":
         print("Please do not run as root")
         exit(-1)
-    debug = 0
-    if len(sys.argv) < 2:
-        print("Error: Please provide a prompt as a command-line argument.")
+
+    parser = argparse.ArgumentParser(description="Translate natural language to Bash commands.")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("command", nargs="*", help="The natural language command to process")
+    args = parser.parse_args()
+
+    if not args.command:
+        print("Error: Please provide a natural language command.")
         sys.exit(1)
-    command = sys.argv[1]
-    if command == "-d":
-        debug = 1
-        command = sys.argv[2]
-    generation_config: str = {
-        'temperature': 0.8,
-        'top_p': 0.5,
-        'top_k': 20,
-        'max_output_tokens': 4048,
-        'stop_sequences': [],
+
+    user_command = " ".join(args.command)
+
+    gemini_generation_config = {
+        "temperature": 0.8,
+        "top_p": 0.5,
+        "top_k": 20,
+        "max_output_tokens": 4048,
+        "stop_sequences": [],
     }
-    safety_settings: list[str] = [
+
+    gemini_safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
+
     if os.getenv("API_KEY") is None:
-        print("API_KEY is not set... please set it and export it in your shell")
-        print('Example:')
-        print(' $ API_KEY="21Ab..........."')
-        print(' $ export API_KEY')
-        exit()
+        print("API_KEY environment variable is not set. Please set it before running the script.")
+        print("Example:")
+        print("  $ export API_KEY=\"your_api_key_here\"")
+        sys.exit(1)
+
     genai.configure(api_key=os.getenv("API_KEY"))
-    model = genai.GenerativeModel(
-        model_name='models/gemini-1.5-flash-latest',
-        generation_config=generation_config,
-        safety_settings=safety_settings
+    gemini_model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash-exp",  # Choose an appropriate model
+        generation_config=gemini_generation_config,
+        safety_settings=gemini_safety_settings,
     )
-    stage = 1
-    attachment = ""
+
+    interaction_stage = 1
+    previous_script_output_attachment = ""
     query_count = 0
+    max_queries = 5
 
-    while True:
-        if query_count >= 5:
-            print("Error: Maximum number of queries to Gemini reached.")
-            break
-
-        script = generate_script(model, command, stage, attachment)
+    while query_count < max_queries:
+        generated_script = generate_bash_script(
+            gemini_model,
+            user_command,
+            interaction_stage,
+            previous_script_output_attachment
+        )
         query_count += 1
-        response_type, content = parse_response(script)
+
+        response_type, response_content = parse_gemini_response(generated_script)
 
         if response_type == "script":
             # Execute the final script and print the output
-            output = execute_and_capture(content)
-            print(output)
+            script_output = execute_command_capture_output(response_content)
+            print(script_output)
             # Send the output back to Gemini to create FINAL_ANSWER
-            attachment += f"\n\n== FINAL SCRIPT OUTPUT ==\n{output}"
-            stage = 3
+            previous_script_output_attachment = f"\n\n== FINAL SCRIPT OUTPUT ==\n{script_output}"
+            interaction_stage = 3
             continue  # Ask Gemini for final answer
 
         elif response_type == "staging_script":
-            # Execute the staging script, capture output, and prepare for next stage
-            output = execute_and_capture(content)
-            attachment += f"\n\n== STAGING SCRIPT OUTPUT ==\n{output}"
-            stage = 2
+            # Execute the staging script, capture output, and prepare for the next stage
+            script_output = execute_command_capture_output(response_content)
+            print(script_output)
+            previous_script_output_attachment = f"\n\n== STAGING SCRIPT OUTPUT ==\n{script_output}"
+            interaction_stage = 2
 
         elif response_type == "question":
-            # Ask the user for clarification and prepare for next stage 
-            clarification = input(f"Clarification needed: {content}\nYour answer: ")
-            attachment += f"\n\n== CLARIFICATION ==\n{clarification}"
-            stage = 1  # We're still in the initial question stage
+            # Ask the user for clarification and prepare for the next stage
+            clarification_input = input(f"Clarification needed: {response_content}\nYour answer: ")
+            previous_script_output_attachment = f"\n\n== CLARIFICATION ==\n{clarification_input}"
+            interaction_stage = 1  # Reset to the initial question stage
 
-        elif response_type == "answer": 
-            # We have the final answer directly 
-            print(content)
-            break
+        elif response_type == "answer":
+            # We have the final answer directly
+            print(response_content)
+            break  # Exit the loop
 
         else:
-            print("Error: Unknown response from Gemini.")
-            break
+            print("Error: Unknown response format from Gemini.")
+            break  # Exit the loop
+
+    if query_count >= max_queries:
+        print("Error: Maximum number of queries to Gemini reached.")
 
 
 if __name__ == "__main__":
