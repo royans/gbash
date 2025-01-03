@@ -135,8 +135,8 @@ def generate_bash_script(gemini_model, user_command, current_stage, previous_scr
         user_command=user_command
     )
 
-    print("-----------------------------------------------------------------------")
-    print(formatted_prompt)
+    #print("-----------------------------------------------------------------------")
+    #print(formatted_prompt)
     response = gemini_model.generate_content([formatted_prompt])
     generated_script = ""
 
@@ -159,9 +159,9 @@ def parse_gemini_response(response_text):
     Returns:
         A tuple containing the response type (string) and the corresponding content (string).
     """
-    print("========")
-    print(response_text)
-    print("========")
+    #print("========")
+    #print(response_text)
+    #print("========")
 
     if "FINAL_SCRIPT" in response_text:
         script_match = re.search(r"FINAL_SCRIPT\n(.*)", response_text, re.DOTALL)
@@ -288,7 +288,7 @@ def main():
         if response_type == "script":
             # Execute the final script and print the output
             script_output = execute_command_capture_output(response_content)
-            print(script_output)
+            #print(script_output)
             # Send the output back to Gemini to create FINAL_ANSWER
             previous_script_output_attachment = f"\n\n== FINAL SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 3
@@ -297,7 +297,7 @@ def main():
         elif response_type == "staging_script":
             # Execute the staging script, capture output, and prepare for the next stage
             script_output = execute_command_capture_output(response_content)
-            print(script_output)
+            #print(script_output)
             previous_script_output_attachment = f"\n\n== STAGING SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 2
 
