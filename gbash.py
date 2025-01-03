@@ -18,7 +18,16 @@ import argparse
 import re
 import google.generativeai as genai
 
+debug_level = 0
 
+def log(msg):
+    global debug_level
+    if debug_level > 0:
+        print("=============")
+        print(msg)
+        print("-------------")
+        print("")
+    
 def generate_bash_script(gemini_model, user_command, current_stage, previous_script_output):
     """
     Generates a Bash script from a natural language command using a generative AI model.
@@ -224,6 +233,7 @@ def main():
     """
     Main function to interact with Gemini, process commands, and manage the conversation flow.
     """
+    global debug_level
 
     user_id = execute_command_capture_output("id -u")
     if user_id.strip() == "0":
@@ -238,6 +248,11 @@ def main():
     if not args.command:
         print("Error: Please provide a natural language command.")
         sys.exit(1)
+
+    if args.debug:
+        debug_level = 1
+    else:
+        debug_level = 0
 
     user_command = " ".join(args.command)
 
@@ -288,7 +303,7 @@ def main():
         if response_type == "script":
             # Execute the final script and print the output
             script_output = execute_command_capture_output(response_content)
-            #print(script_output)
+            log(script_output)
             # Send the output back to Gemini to create FINAL_ANSWER
             previous_script_output_attachment = f"\n\n== FINAL SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 3
@@ -297,7 +312,7 @@ def main():
         elif response_type == "staging_script":
             # Execute the staging script, capture output, and prepare for the next stage
             script_output = execute_command_capture_output(response_content)
-            #print(script_output)
+            log(script_output)
             previous_script_output_attachment = f"\n\n== STAGING SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 2
 
