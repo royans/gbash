@@ -20,15 +20,28 @@ import google.generativeai as genai
 
 debug_level = 0
 
+
+def remove_empty_lines(text):
+  """Removes empty lines from a string.
+
+  Args:
+    text: The string to remove empty lines from.
+
+  Returns:
+    The string with empty lines removed.
+  """
+  lines = text.splitlines()
+  non_empty_lines = [line for line in lines if line.strip()]
+  return '\n'.join(non_empty_lines)
+
 def log(msg):
     global debug_level
     if debug_level > 0:
         print("=============")
-        print(msg)
-        print("-------------")
-        print("")
+        print(remove_empty_lines(msg))
     
-def generate_bash_script(gemini_model, user_command, current_stage, previous_script_output):
+    
+def generate_bash_script(chat_session, user_command, current_stage, previous_script_output):
     """
     Generates a Bash script from a natural language command using a generative AI model.
 
@@ -80,6 +93,8 @@ def generate_bash_script(gemini_model, user_command, current_stage, previous_scr
     - **Stage 3:**
         - Generate the `FINAL_ANSWER` based on all available information.
         - The `FINAL_ANSWER` must start with "FINAL_ANSWER" on a new line, followed by the answer in plain English on the next line.
+        - If the request was to generate a file... and the file has been generated. The FINAL_ANSWER should just say the file has been created and give the location.
+           - And if the file was already shared previously in a FINAL_ANSWER, do not share it again... just say that the request is complete.
 
     **Important Notes:**
 
@@ -137,16 +152,26 @@ def generate_bash_script(gemini_model, user_command, current_stage, previous_scr
     **Please test and confirm your answers before responding.**
     """
 
-    formatted_prompt = prompt_template.format(
-        current_stage=current_stage,
-        system_info=system_info,
-        previous_script_output=previous_script_output if previous_script_output else "No previous script output.",
-        user_command=user_command
-    )
 
-    #print("-----------------------------------------------------------------------")
-    #print(formatted_prompt)
-    response = gemini_model.generate_content([formatted_prompt])
+    iteration_template = """
+    **Here is the output:**
+    {previous_script_output}
+    """
+
+
+    if current_stage ==1:
+        formatted_prompt = prompt_template.format(
+            current_stage=current_stage,
+            system_info=system_info,
+            previous_script_output=previous_script_output if previous_script_output else "No previous script output.",
+            user_command=user_command
+        )
+    else:
+        formatted_prompt = iteration_template.format(
+            previous_script_output=previous_script_output if previous_script_output else "No previous script output.",
+        )
+        
+    response = chat_session.send_message([formatted_prompt])
     generated_script = ""
 
     try:
@@ -218,6 +243,7 @@ def execute_command_capture_output(command):
     Returns:
         A string containing the combined standard output and up to 10 lines of standard error.
     """
+    log(f"Exec :{command}")
     process_result = subprocess.run(command, shell=True, capture_output=True, text=True)
     standard_output = process_result.stdout
     standard_error = process_result.stderr
@@ -225,6 +251,7 @@ def execute_command_capture_output(command):
     if standard_error:
         error_lines = standard_error.splitlines()[:10]  # Capture up to 10 lines of error
         standard_output += "\n\n== ERRORS ==\n" + "\n".join(error_lines)
+    log(f"Output : {standard_output}")
 
     return standard_output
 
@@ -242,7 +269,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Translate natural language to Bash commands.")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("command", nargs="*", help="The natural language command to process")
+    parser.add_argument("command", nargs=argparse.REMAINDER, help="The natural language command to process")
     args = parser.parse_args()
 
     if not args.command:
@@ -265,10 +292,10 @@ def main():
     }
 
     gemini_safety_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
     ]
 
     if os.getenv("API_KEY") is None:
@@ -283,6 +310,8 @@ def main():
         generation_config=gemini_generation_config,
         safety_settings=gemini_safety_settings,
     )
+    
+    chat_session = gemini_model.start_chat()
 
     interaction_stage = 1
     previous_script_output_attachment = ""
@@ -291,7 +320,7 @@ def main():
 
     while query_count < max_queries:
         generated_script = generate_bash_script(
-            gemini_model,
+            chat_session,
             user_command,
             interaction_stage,
             previous_script_output_attachment
@@ -303,7 +332,7 @@ def main():
         if response_type == "script":
             # Execute the final script and print the output
             script_output = execute_command_capture_output(response_content)
-            log(script_output)
+            #log(script_output)
             # Send the output back to Gemini to create FINAL_ANSWER
             previous_script_output_attachment = f"\n\n== FINAL SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 3
@@ -312,7 +341,7 @@ def main():
         elif response_type == "staging_script":
             # Execute the staging script, capture output, and prepare for the next stage
             script_output = execute_command_capture_output(response_content)
-            log(script_output)
+            #log(script_output)
             previous_script_output_attachment = f"\n\n== STAGING SCRIPT OUTPUT ==\n{script_output}"
             interaction_stage = 2
 
@@ -324,7 +353,7 @@ def main():
 
         elif response_type == "answer":
             # We have the final answer directly
-            print(response_content)
+            print(f"Answer :{response_content}")
             break  # Exit the loop
 
         else:
