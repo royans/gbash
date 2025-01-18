@@ -93,8 +93,10 @@ def generate_bash_script(chat_session, user_command, current_stage, previous_scr
     - **Stage 3:**
         - Generate the `FINAL_ANSWER` based on all available information.
         - The `FINAL_ANSWER` must start with "FINAL_ANSWER" on a new line, followed by the answer in plain English on the next line.
-        - If the request was to generate a file... and the file has been generated. The FINAL_ANSWER should just say the file has been created and give the location.
-           - And if the file was already shared previously in a FINAL_ANSWER, do not share it again... just say that the request is complete.
+        - If the request was to generate a file in a location... and the file has been generated. The FINAL_ANSWER should just say the file has been created and give the location.
+            - And if the file was already shared previously in a FINAL_ANSWER, do not share it again... just say that the request is complete.
+        - If the request was to just "show" the code sample in output... and the output has been generated. The FINAL_ANSWER should just print out the complete file and end.
+            - If the request is to "show"... feel free to run commands to figure out the write code... but the FINAL_ANSWER should have the final code snippet   
 
     **Important Notes:**
 
